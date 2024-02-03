@@ -1,0 +1,2 @@
+exit    eax:1               [args: ebx]
+write   eax:4 ebx:1         [args: ecx]             [auto: edx|len(ecx)]
