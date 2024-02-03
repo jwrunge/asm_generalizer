@@ -33,5 +33,6 @@ fn main() {
         outfile = format!("{}.asm", infile_no_ext);
     }
 
-    let asm_maps = config::get_asm_maps(&arch, &os);
+    // let asm_maps = config::get_asm_maps(&arch, &os);
+    let vals = config::get_arch_os_defs(&arch, &os);
 }

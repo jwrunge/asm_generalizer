@@ -1,129 +1,69 @@
-use std::collections::HashMap;
-use regex::Regex;
-
-struct ConstArgs {
-    reg: String,
-    val: i32,
+#[derive(Debug)]
+pub struct SysCall {
+    name: String,
+    code: String,
+    args: Vec<String>,
 }
 
-struct AutoArgs {
-    reg: String,
-    func: String,
-    reg_arg: String,
-}
-
-pub struct AsmMap {
-    const_args: Vec<ConstArgs>,
-    user_arg_regs: Vec<String>,
-    auto_args: Vec<AutoArgs>,
-}
-
-fn load_asm_map_def_from_module(arch: &str, os: &str)-> String {
+fn get_config_files(arch: &str, os: &str) -> (String, String) {
     let exe_dir = std::env::current_dir().expect("Error: cannot get current exe directory");
-    let mod_path = std::path::Path::join(
+    
+    let registers_path = std::path::Path::join(
         &exe_dir,
-        format!("modules/{}/{}.calls", arch, os),
+        format!("modules/{}/registers.csv", arch),
     );
-    if mod_path.exists() {
-        let contents = std::fs::read_to_string(mod_path)
-            .expect(&format!("Error: cannot read module {}/{}", arch, os));
-        contents
-    } else {
-        panic!("Error: cannot find module {}.{}. Is it installed?", arch, os);
-    }
+    let syscalls_path = std::path::Path::join(
+        &exe_dir,
+        format!("modules/os/{}/syscalls.csv", os),
+    );
+
+    let registers = std::fs::read_to_string(&registers_path)
+        .expect(&format!("Error: cannot read registers definition from {}", registers_path.to_str().unwrap()));
+    let syscalls = std::fs::read_to_string(&syscalls_path)
+        .expect(&format!("Error: cannot read syscalls definition from {}", syscalls_path.to_str().unwrap()));
+
+    (registers, syscalls)
 }
 
-fn convert_line_to_map(line: &str) -> Result<(String, AsmMap), &str> {
-    let func_regex = Regex::new(r"^\w+\s").unwrap();
-    let func_name = match func_regex.find(line) {
-        Some(capture) => capture.as_str(),
-        None => return Err("Error: cannot find function name"),
-    };
+pub fn get_arch_os_defs(arch: &str, os: &str) -> (Vec<String>, Vec<SysCall>) {
+    let (registers, syscalls_list) = get_config_files(arch, os);
 
-    let mut asm_map = AsmMap {
-        const_args: vec![],
-        user_arg_regs: vec![],
-        auto_args: vec![],
-    };
+    let mut regs_strs: std::str::Split<'_, &str> = registers.split(",");
+    let regs: Vec<String> = regs_strs.map(|s| s.to_string()).collect();
 
-    let match_const_args = Regex::new(r"\S+?:\S+?").unwrap();
-    let match_var_args = Regex::new(r"\[.*?\]").unwrap();
-    let split_auto_args = Regex::new(r"[|()]").unwrap();
+    let mut lines = syscalls_list.lines();
+    let mut headers: Vec<&str> = lines.next().expect("Error: syscalls file is empty").split(",").collect();
 
-    let const_args = match_const_args.find_iter(line);
-    for arg in const_args {
-        let mut parts = arg.as_str().split(":");
-        let reg = match parts.next() {
-            Some(reg) => reg,
-            None => return Err("Error: cannot find register name for constant argument"),
-        };
-        let val = match parts.next() {
-            Some(val) => val.parse::<i32>().unwrap(),
-            None => return Err("Error: cannot find value for constant argument"),
-        };
+    let mut syscalls: Vec<SysCall> = Vec::new();
+    for (i, line) in lines.enumerate() {
+        let mut details = line.split(",");
+        let mut name = String::from("");
+        let mut args: Vec<String> = Vec::new();
+        let mut code = String::from("");
 
-        asm_map.const_args.push(ConstArgs {
-            reg: reg.to_string(),
-            val: val,
+        for (index, val) in details.enumerate() {
+            if index == 0 {
+                name = val.to_string();
+                continue;
+            }
+
+            let header = headers.get(index).unwrap_or(&"").to_string();
+            if header == arch {
+                code = val.to_string();
+            }
+            else if header.contains("arg") {
+                args.push(val.to_string());
+            }
+        }
+
+        syscalls.push(SysCall {
+            name: name,
+            code: code,
+            args: args,
         });
     }
 
-    let var_args = match_var_args.find_iter(line);
-    for arg in var_args {
-        let arg = arg.as_str();
-        if arg.starts_with("[args: ") {
-            let regs = arg.replace("[args: ", "").replace("]", "");
-            for reg in regs.split_whitespace() {
-                asm_map.user_arg_regs.push(reg.to_string());
-            }
-        }
-        else if arg.starts_with("[auto: ") {
-            let defs = arg.replace("[auto: ", "").replace("]", "");
-            for def in defs.split_whitespace() {
-                let mut parts = split_auto_args.split(def);
-                let reg = match parts.next() {
-                    Some(reg) => reg,
-                    None => return Err("Error: cannot find register name for auto argument"),
-                };
-                let func = match parts.next() {
-                    Some(func) => func,
-                    None => return Err("Error: cannot find function name for auto argument"),
-                };
-                let reg_arg = match parts.next() {
-                    Some(reg_arg) => reg_arg,
-                    None => return Err("Error: cannot find register argument for auto argument"),
-                };
-                asm_map.auto_args.push(AutoArgs {
-                    reg: reg.to_string(),
-                    func: func.to_string(),
-                    reg_arg: reg_arg.to_string(),
-                });
-            }
-        }
-        else {
-            return Err("Error: unknown variable argument type")
-        }
-    }
+    println!("{:?}, {:?}", regs, syscalls);
 
-    Ok((func_name.to_string(), asm_map))
-}
-
-pub fn get_asm_maps(arch: &str, os: &str) -> HashMap<String, AsmMap> {
-    let asm_map_def = load_asm_map_def_from_module(arch, os);
-    
-    let mut asm_map: HashMap<String, AsmMap> = HashMap::new();
-    for (idx, line) in asm_map_def.lines().enumerate() {
-        let m = convert_line_to_map(line);
-        match m {
-            Ok(m) => {
-                asm_map.insert(m.0, m.1);
-            }
-            Err(e) => {
-                eprintln!("Error in module map {}.{} (LINE {}): {}", arch, os, idx + 1, e);
-                continue;
-            }
-        }
-    }
-
-    asm_map
+    (regs, syscalls)
 }
