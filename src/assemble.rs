@@ -11,15 +11,20 @@ pub fn assemble(regs: Vec<String>, syscalls: Vec<SysCall>, infile: String)-> Str
             let fname = parts.next().expect("Function name not found").replace(">", "");
             let args = parts.collect::<Vec<&str>>();
 
-            println!("Outputting syscall: {}", fname);
-
-            let syscall = syscalls.iter().find(|s| s.name == fname).expect("Syscall not found");
+            let mut inc_reg = 1;
             let mut call_output = String::from("");
 
-            call_output.push_str(format!("\tmov\t{}, {}\n", regs[0], syscall.code).as_str());
+            if fname == ":syscall" {
+                inc_reg = 0;
+            }
+            else {
+                let syscall = syscalls.iter().find(|s| s.name == fname).expect("Syscall not found");
+                call_output.push_str(format!("\tmov\t{}, {}\n", regs[0], syscall.code).as_str());
+            }
+
             for (i, arg) in args.iter().enumerate() {
                 if !arg.is_empty() {
-                    call_output.push_str(format!("\tmov\t{}, {}\n", regs[i + 1], arg).as_str());
+                    call_output.push_str(format!("\tmov\t{}, {}\n", regs[i + inc_reg], arg).as_str());
                 }
             }
             call_output.push_str(format!("\tint\t0x80\n").as_str());

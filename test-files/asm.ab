@@ -7,3 +7,4 @@ global _start
 _start:
 
     >write(1, msg, 13)
+    >:syscall(1, 0)
