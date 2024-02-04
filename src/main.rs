@@ -1,4 +1,5 @@
 mod config;
+mod assemble;
 
 fn main() {
     let mut arch = String::from("");
@@ -33,6 +34,15 @@ fn main() {
         outfile = format!("{}.asm", infile_no_ext);
     }
 
-    // let asm_maps = config::get_asm_maps(&arch, &os);
-    let vals = config::get_arch_os_defs(&arch, &os);
+    let filedata = std::fs::read_to_string(&infile)
+        .expect(&format!("Error: cannot read file {}", infile));
+
+    let (registers, syscalls) = config::get_arch_os_defs(&arch, &os);
+    let output = assemble::assemble(registers, syscalls, filedata);
+
+    match std::fs::write(&outfile, output) {
+        Ok(_) => println!("Success: output written to {}", outfile),
+        Err(e) => println!("Error: cannot write to file {}: {}", outfile, e),
+    }
+
 }

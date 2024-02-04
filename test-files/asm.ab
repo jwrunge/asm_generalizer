@@ -1,2 +1,9 @@
-write>  msg:"This is my message!"
-exit>   0
+SECTION .data
+msg     db      'Hello World!', 0Ah
+
+SECTION .text
+global _start
+
+_start:
+
+    >write(1, msg, 13)

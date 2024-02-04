@@ -1,8 +1,8 @@
 #[derive(Debug)]
 pub struct SysCall {
-    name: String,
-    code: String,
-    args: Vec<String>,
+    pub name: String,
+    pub code: String,
+    pub args: Vec<String>,
 }
 
 fn get_config_files(arch: &str, os: &str) -> (String, String) {
@@ -28,15 +28,15 @@ fn get_config_files(arch: &str, os: &str) -> (String, String) {
 pub fn get_arch_os_defs(arch: &str, os: &str) -> (Vec<String>, Vec<SysCall>) {
     let (registers, syscalls_list) = get_config_files(arch, os);
 
-    let mut regs_strs: std::str::Split<'_, &str> = registers.split(",");
+    let regs_strs: std::str::Split<'_, &str> = registers.split(",");
     let regs: Vec<String> = regs_strs.map(|s| s.to_string()).collect();
 
     let mut lines = syscalls_list.lines();
-    let mut headers: Vec<&str> = lines.next().expect("Error: syscalls file is empty").split(",").collect();
+    let headers: Vec<&str> = lines.next().expect("Error: syscalls file is empty").split(",").collect();
 
     let mut syscalls: Vec<SysCall> = Vec::new();
-    for (i, line) in lines.enumerate() {
-        let mut details = line.split(",");
+    for line in lines {
+        let details = line.split(",");
         let mut name = String::from("");
         let mut args: Vec<String> = Vec::new();
         let mut code = String::from("");
@@ -62,8 +62,6 @@ pub fn get_arch_os_defs(arch: &str, os: &str) -> (Vec<String>, Vec<SysCall>) {
             args: args,
         });
     }
-
-    println!("{:?}, {:?}", regs, syscalls);
 
     (regs, syscalls)
 }
