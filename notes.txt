@@ -2,3 +2,5 @@ LSP needed to match generic functions to syscalls
 syscalls need to support multiple interrupts / steps
 LSP should let you know if you have too few arguments, what args are missing, etc. What funcs are missing.
 Need analyzer tool to let you know what needs updated.
+
+ld hello.o -o hello

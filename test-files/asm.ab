@@ -1,12 +1,11 @@
 SECTION .data
-msg     db      'Hello World!', 0Ah
+msg     db      'Hello World!'
 
 SECTION .text
 global _start
 
 _start:
-
     #x86.linux {
-        >write(1, msg, 13)
+        >write(1, msg, 12)
         >exit(0)
     }
