@@ -38,7 +38,7 @@ fn main() {
         .expect(&format!("Error: cannot read file {}", infile));
 
     let (registers, syscalls) = config::get_arch_os_defs(&arch, &os);
-    let output = assemble::assemble(registers, syscalls, filedata);
+    let output = assemble::assemble(&arch, &os, registers, syscalls, filedata);
 
     match std::fs::write(&outfile, output) {
         Ok(_) => println!("Success: output written to {}", outfile),

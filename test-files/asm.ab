@@ -6,5 +6,7 @@ global _start
 
 _start:
 
-    >write(1, msg, 13)
-    >:syscall(1, 0)
+    #x86.linux {
+        >write(1, msg, 13)
+        >exit(0)
+    }
